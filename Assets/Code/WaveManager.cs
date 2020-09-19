@@ -12,7 +12,6 @@ public struct Wave
 
 public class WaveManager : MonoBehaviour
 {
-    private Tilemap logicTileMap;
     public List<Vector2> road_path = new List<Vector2>();
     public List<Wave> waves = new List<Wave>();
 
@@ -49,7 +48,7 @@ public class WaveManager : MonoBehaviour
 
     public void Start()
     {
-        logicTileMap = GridHelper.instance.LogicTileMap;
+        Tilemap logicTileMap = GridHelper.instance.LogicTileMap;
         Vector3Int start = Vector3Int.zero;
         foreach (Vector3Int position in logicTileMap.cellBounds.allPositionsWithin)
         {

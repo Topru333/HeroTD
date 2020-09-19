@@ -84,6 +84,7 @@ public class TowerBuilder : MonoBehaviour
         build_mode = false;
         tower_to_build.GetComponent<Tower>().enabled = true;
         towers_on_map.Add(tower_to_build.gameObject);
+        tower_to_build.transform.position = Grid.PointToTile(OverMousePosition, tower_to_build.TileRadius, true);
         Grid.ClearMarks();
     }
 

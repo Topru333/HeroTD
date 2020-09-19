@@ -22,10 +22,10 @@ public class TowerGrid
 #if UNITY_EDITOR
     public void RebuildGridComponent()
     {
-        EditorGUIUtility.PingObject(GridHelper.instance.TowerGrid);
-        GridHelper.instance.TowerGrid.transform.position = Vector3.zero + Offset;
+        EditorGUIUtility.PingObject(GridHelper.instance.TowersGrid);
+        GridHelper.instance.TowersGrid.transform.position = Vector3.zero + Offset;
 
-        Grid grid = GridHelper.instance.TowerGrid.GetComponent<Grid>();
+        Grid grid = GridHelper.instance.TowersGrid.GetComponent<Grid>();
         grid.cellSize = Vector3.one;
         grid.transform.localScale = CellSize;
         grid.cellGap = Vector3.zero;
@@ -44,13 +44,11 @@ public class TowerGrid
         return result;
     }
 
-    public Vector3 PointToTile(Vector3 point, Vector2Int radius)
+    public Vector3 PointToTile(Vector3 point, Vector2Int radius, bool finish = false)
     {
         var result = PointToTile(point);
-
         ClearMarks();
-        MarkTiles(result, radius);
-
+        MarkTiles(result, radius, finish);
         return result;
     }
 
@@ -59,10 +57,12 @@ public class TowerGrid
         GridHelper.instance.LayoutTileMap.ClearAllTiles();
     }
 
+
     // God hates this function
-    public void MarkTiles(Vector3 pos, Vector2Int radius)
+    public void MarkTiles(Vector3 pos, Vector2Int radius, bool determinant = false)
     {
         var _layoutTileMap = GridHelper.instance.LayoutTileMap;
+        var _detTileMap = GridHelper.instance.TowerDeterminant;
         var cellpos = _layoutTileMap.WorldToCell(pos);
         CanBuild = true;
         if (radius == Vector2Int.zero)
@@ -78,12 +78,21 @@ public class TowerGrid
                 {
                     Vector3Int tile_position = new Vector3Int(cellpos.x + x, cellpos.y + y, cellpos.z);
                     tile_positions.Add(tile_position);
-                    TileBase logic_tile = GridHelper.instance.LogicTileMap.GetTile(GridHelper.instance.LogicTileMap.WorldToCell(GridHelper.instance.LayoutTileMap.CellToWorld(tile_position)));
-                    CanBuild = CanBuild && LogicTileIsAvailible(logic_tile);
-                    tiles.Add(GetAvailibleTile(LogicTileIsAvailible(logic_tile)));
+                    TileBase logic_tile = GridHelper.instance.LogicTileMap.GetTile(GridHelper.instance.LogicTileMap.WorldToCell(_layoutTileMap.CellToWorld(tile_position)));
+                    TileBase det_tile = _detTileMap.GetTile(tile_position);
+
+                    CanBuild = CanBuild && LogicTileValid(logic_tile) && det_tile == null;
+                    tiles.Add(GetAvailibleTile(LogicTileValid(logic_tile) && det_tile == null));
                 }
             }
-            _layoutTileMap.SetTiles(tile_positions.ToArray(), tiles.ToArray());
+
+            if (determinant)
+            {
+                _detTileMap.SetTiles(tile_positions.ToArray(), tiles.ToArray());
+            } else
+            {
+                _layoutTileMap.SetTiles(tile_positions.ToArray(), tiles.ToArray());
+            }
         }
     }
 
@@ -94,7 +103,7 @@ public class TowerGrid
         return maptile;
     }
 
-    private bool LogicTileIsAvailible(TileBase tile)
+    private bool LogicTileValid(TileBase tile)
     {
         return tile != null && tile is GrassTile;
     }
