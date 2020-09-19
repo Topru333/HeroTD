@@ -1,111 +1,102 @@
-﻿
-using System;
-using TMPro;
+﻿using System;
 using UnityEngine;
-using UnityEngine.Diagnostics;
+using UnityEngine.Tilemaps;
+using UnityEngine.UI;
+using System.Collections.Generic;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [Serializable]
-public class TowerGrid
+public class TowerGrid 
 {
-    [SerializeField] private int _radius;
-    [SerializeField] private Vector3 _offset;
-    [SerializeField] private float _scale;
-    [SerializeField] private Color _lineColor;
-    [SerializeField] private int _majorLines = 5;
-    [field: SerializeField] public Color ColorAvailable { get; set; } = Color.green;
-    [field: SerializeField] public Color ColorNotAvailable { get; set; } = Color.red;
+    [field: SerializeField] public Vector3 Offset { get; private set; } = Vector3.zero;
+    [field: SerializeField] public Vector3 CellSize { get; private set; } = Vector3.one;
+    [field: SerializeField] public Sprite AvailibleSprite { get; private set; }
+    [field: SerializeField] public Sprite NotAvailibleSprite { get; private set; }
+    
+    public bool CanBuild { get; private set; } = false;
 
-    public int Radius
+
+#if UNITY_EDITOR
+    public void RebuildGridComponent()
     {
-        get
-        {
-            return _radius;
-        }
+        EditorGUIUtility.PingObject(GridHelper.instance.TowerGrid);
+        GridHelper.instance.TowerGrid.transform.position = Vector3.zero + Offset;
+
+        Grid grid = GridHelper.instance.TowerGrid.GetComponent<Grid>();
+        grid.cellSize = Vector3.one;
+        grid.transform.localScale = CellSize;
+        grid.cellGap = Vector3.zero;
+        grid.cellLayout = Grid.CellLayout.Rectangle;
+        grid.cellSwizzle = Grid.CellSwizzle.XYZ;
     }
-
-    public Vector3 Offset
-    {
-        get
-        {
-            return _offset;
-        }
-    }
-
-    public float Scale
-    {
-        get
-        {
-            return _scale;
-        }
-    }
-
-    public Color LineColor
-    {
-        get
-        {
-            return _lineColor;
-        }
-    }
-
-    public TowerGrid(int radius, Vector3 offset, float scale, Color lineColor)
-    {
-        _radius = radius;
-        _offset = offset;
-        _scale = scale;
-        _lineColor = lineColor;
-    }
-
-    public void DrawGizmos()
-    {
-        // set colours
-        Color dimColor = new Color(LineColor.r, LineColor.g, LineColor.b, 0.25f * LineColor.a);
-        Color brightColor = Color.Lerp(Color.white, LineColor, 0.75f);
-
-        // draw the horizontal lines
-        for (int number = Radius * -1; number < Radius + 1; number++)
-        {
-            // find major lines
-            Gizmos.color = (number % _majorLines == 0 ? LineColor : dimColor);
-            if (number == 0)
-                Gizmos.color = brightColor;
-
-            Vector3 pos1X = new Vector3(number, Radius * -1, 0) * Scale;
-            Vector3 pos2X = new Vector3(number, Radius, 0) * Scale;
-
-            Vector3 pos1Y = new Vector3(Radius * -1, number, 0) * Scale;
-            Vector3 pos2Y = new Vector3(Radius, number, 0) * Scale;
-
-            Gizmos.DrawLine((Offset + pos1X), (Offset + pos2X));
-            Gizmos.DrawLine((Offset + pos1Y), (Offset + pos2Y));
-        }
-    }
+#endif
 
     public Vector3 PointToTile(Vector3 point)
     {
         Vector3 result = Vector3.zero;
-        float offset = Scale * .5f;
-        result.x = (int)(point.x / Scale) * Scale + (point.x < 0 ? -offset : offset);
-        result.y = (int)(point.y / Scale) * Scale + (point.y < 0 ? -offset : offset);
+        Vector3 cell_offset = CellSize * .5f;
+        result.x = (int)(point.x / CellSize.x) * CellSize.x + (point.x < 0 ? -cell_offset.x : cell_offset.x) + Offset.x;
+        result.y = (int)(point.y / CellSize.y) * CellSize.y + (point.y < 0 ? -cell_offset.y : cell_offset.y) + Offset.x;
+
         return result;
     }
 
-    private Vector3 GetWorldPosition(float x, float y, float z)
+    public Vector3 PointToTile(Vector3 point, Vector2Int radius)
     {
-        return new Vector3(x, y, z) * Scale;
+        var result = PointToTile(point);
+
+        ClearMarks();
+        MarkTiles(result, radius);
+
+        return result;
     }
 
-    private static TextMesh CreateWorldText(Transform parent, string text, Vector3 localPosition, int fontSize, Color color, TextAnchor textAnchor)
+    public void ClearMarks()
     {
-        GameObject gameObject = new GameObject("World_Text", typeof(TextMesh));
-        Transform transform = gameObject.transform;
-        transform.SetParent(parent, false);
-        transform.localPosition = localPosition;
-        TextMesh textMesh = gameObject.GetComponent<TextMesh>();
-        textMesh.anchor = textAnchor;
-        textMesh.alignment = TextAlignment.Center;
-        textMesh.text = text;
-        textMesh.fontSize = fontSize;
-        textMesh.color = color;
-        return textMesh;
+        GridHelper.instance.LayoutTileMap.ClearAllTiles();
     }
+
+    // God hates this function
+    public void MarkTiles(Vector3 pos, Vector2Int radius)
+    {
+        var _layoutTileMap = GridHelper.instance.LayoutTileMap;
+        var cellpos = _layoutTileMap.WorldToCell(pos);
+        CanBuild = true;
+        if (radius == Vector2Int.zero)
+        {
+            _layoutTileMap.SetTile(cellpos, GetAvailibleTile());
+        } else
+        {
+            List<Vector3Int> tile_positions = new List<Vector3Int>();
+            List<TileBase> tiles = new List<TileBase>();
+            for (int x = -radius.x; x < radius.x + 1; x++)
+            {
+                for (int y = -radius.y; y < radius.y + 1; y++)
+                {
+                    Vector3Int tile_position = new Vector3Int(cellpos.x + x, cellpos.y + y, cellpos.z);
+                    tile_positions.Add(tile_position);
+                    TileBase logic_tile = GridHelper.instance.LogicTileMap.GetTile(GridHelper.instance.LogicTileMap.WorldToCell(GridHelper.instance.LayoutTileMap.CellToWorld(tile_position)));
+                    CanBuild = CanBuild && LogicTileIsAvailible(logic_tile);
+                    tiles.Add(GetAvailibleTile(LogicTileIsAvailible(logic_tile)));
+                }
+            }
+            _layoutTileMap.SetTiles(tile_positions.ToArray(), tiles.ToArray());
+        }
+    }
+
+    private MapTile GetAvailibleTile(bool availible = true)
+    {
+        MapTile maptile = ScriptableObject.CreateInstance<GrassTile>();
+        maptile.tileSprite = availible ? AvailibleSprite : NotAvailibleSprite;
+        return maptile;
+    }
+
+    private bool LogicTileIsAvailible(TileBase tile)
+    {
+        return tile != null && tile is GrassTile;
+    }
+
 }

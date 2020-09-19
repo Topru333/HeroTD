@@ -4,29 +4,30 @@ using UnityEngine;
 
 public class Tower : MonoBehaviour
 {
-
-    [SerializeField] private int radius = 5;
-    [SerializeField] private int damage = 5;
-    [SerializeField] private float attackRate = 5f;
+    [field: SerializeField] public int Radius { get; private set; } = 5;
+    [field: SerializeField] public int Damage { get; private set; } = 5;
+    [field: SerializeField] public float AttackRate { get; private set; } = 5f;
+    [field: SerializeField] public int Price { get; private set; } = 5;
+    [field: SerializeField] public Vector2Int TileRadius { get; private set; } = Vector2Int.one;
     private float nextAttack = 0f;
 
     private Collider2D[] hitColliders = { };
 
     public void FixedUpdate()
     {
-        hitColliders = Physics2D.OverlapCircleAll(transform.position, radius, 1 << 8);
+        hitColliders = Physics2D.OverlapCircleAll(transform.position, Radius, 1 << 8);
 
         if (hitColliders.Length > 0 && Time.time > nextAttack && hitColliders[0].gameObject != null)
         {
-            hitColliders[0].GetComponent<Mob>().Hit(damage);
-            nextAttack = Time.time + attackRate;
+            hitColliders[0].GetComponent<Mob>().Hit(Damage);
+            nextAttack = Time.time + AttackRate;
         }
     }
 
 #if UNITY_EDITOR
     public void OnDrawGizmos()
     {
-        Gizmos.DrawWireSphere(transform.position, radius);
+        Gizmos.DrawWireSphere(transform.position, Radius);
         for (int i = 0; i < hitColliders.Length; i++)
         {
             if (hitColliders[i] == null)

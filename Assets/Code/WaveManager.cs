@@ -12,14 +12,14 @@ public struct Wave
 
 public class WaveManager : MonoBehaviour
 {
-    [SerializeField] private Tilemap logicTileMap;
+    private Tilemap logicTileMap;
     public List<Vector2> road_path = new List<Vector2>();
     public List<Wave> waves = new List<Wave>();
 
 #if UNITY_EDITOR
     public void OnDrawGizmos()
     {
-        
+           
         if (road_path.Count > 1)
         {
             for(int i = 0; i < road_path.Count; i++)
@@ -49,6 +49,7 @@ public class WaveManager : MonoBehaviour
 
     public void Start()
     {
+        logicTileMap = GridHelper.instance.LogicTileMap;
         Vector3Int start = Vector3Int.zero;
         foreach (Vector3Int position in logicTileMap.cellBounds.allPositionsWithin)
         {
